@@ -1,0 +1,39 @@
+# Custom Personal Use License
+
+Copyright (c) 2025 - Present, ShortsGenerator Author(s)
+
+## Terms and Conditions
+
+1. **Personal Use Only**
+   This software and associated documentation files (the "Software") may be used for personal, non-commercial purposes only. Commercial use of the Software, including but not limited to selling, licensing, or using the Software to generate revenue directly or indirectly, is strictly prohibited.
+
+2. **Modification**
+   You may modify the Software for your own personal use. However, modified versions of the Software remain subject to all terms of this license.
+
+3. **Redistribution Restrictions**
+   You may not redistribute the Software, in whole or in part, in its original or modified form. This includes, but is not limited to:
+   - Repackaging the Software for distribution
+   - Including the Software in other software packages
+   - Posting the Software on websites, repositories, or any other distribution platforms
+   - Selling or licensing the Software or derivatives based on the Software
+
+4. **Ownership and Rights**
+   All rights, title, and interest in and to the Software remain exclusively with the original author(s). This license does not grant you any ownership rights to the Software.
+
+5. **No Warranty**
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. **Termination**
+   This license automatically terminates if you violate any of its terms. Upon termination, you must destroy all copies of the Software in your possession.
+
+7. **API Usage**
+   Users of this Software are responsible for obtaining their own API keys and ensuring their usage complies with the terms of service of all integrated APIs, including OpenAI, Pexels, and Google/YouTube APIs.
+
+8. **Content Responsibility**
+   Users are solely responsible for any content created using this Software and must ensure such content complies with all applicable laws, regulations, and platform policies.
+
+9. **Contributions**
+   Contributions to the project through pull requests, bug reports, or feature suggestions are permitted and encouraged. By submitting a contribution, you agree to license your contribution under the same license as this project. The license holder reserves the right to accept or reject any contributions at their sole discretion.
+
+10. **Exceptions by Agreement**
+    Exceptions to any of the above restrictions may be granted through a separate written agreement with the license holder. Such agreements may permit commercial use, redistribution, or other activities otherwise prohibited by this license, according to terms agreed upon by all parties involved.

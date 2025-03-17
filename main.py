@@ -711,7 +711,7 @@ class ShortsGenerator:
             await self.video_processor.generate_story_video(script)
             self.content_tracker.save_new_content('story', script_data["title"])
             
-            output_file = os.path.join(self.config.output_dir, "story.mp4")
+            output_file = os.path.join(self.config_manager.output_dir, "story.mp4")
             if os.path.exists(output_file):
                 self.youtube_uploader.upload_to_youtube(
                     output_file, 
@@ -733,7 +733,7 @@ class ShortsGenerator:
             await self.video_processor.generate_long_video(script)
             self.content_tracker.save_new_content('topic', script_data["topic"])
             
-            output_file = os.path.join(self.config.output_dir, "longVideo.mp4")
+            output_file = os.path.join(self.config_manager.output_dir, "longVideo.mp4")
             if os.path.exists(output_file):
                 self.youtube_uploader.upload_to_youtube(
                     output_file, 

@@ -346,7 +346,7 @@ class VideoDownloader:
             response = requests.get(
                 self.pexels_endpoint,
                 headers={"Authorization": self.config.pexels_api_key},
-                params={"query": keyword, "per_page": 15, "size": "medium", "orientation": orientation},
+                params={"query": keyword, "per_page": 25, "size": "medium", "orientation": orientation},
             )
             
             totalVideoDuration = 0
@@ -473,13 +473,15 @@ class VideoProcessor:
         if not script_data:
             return None, None
         
-        AllVideoClips = []
         temp_files = []  # Track all temporary files
-        all_created_clips = []  # Track all clips for proper closing
+        segment_files = []  # Track intermediate video segments
         
         try:
+            # Process script parts in batches to manage memory efficiently
             for i, part in enumerate(script_data["script"]):
-                audioFile, subtitle_data = await self.tts_processor.convert_text_to_speech_and_vtt(part["text"], "shortVideoPart-" + str(i))
+                all_created_clips = []  # Track all clips for proper closing within this batch
+                
+                audioFile, subtitle_data = await self.tts_processor.convert_text_to_speech_and_vtt(part["text"], f"shortVideoPart-{i}")
                 audioClip = AudioFileClip(os.path.join(self.config.temp_dir, audioFile))
                 all_created_clips.append(audioClip)
                 temp_files.append(audioFile)
@@ -493,16 +495,16 @@ class VideoProcessor:
                 video_filenames = []
                 
                 for a, url in enumerate(videoUrls):
-                    fileName = self.video_downloader.download_video(url, "pexelsClip-" + str(i) + "-" + str(a))
+                    fileName = self.video_downloader.download_video(url, f"pexelsClip-{i}-{a}")
                     video_filenames.append(fileName)
                     try:
                         short_format = self.config.config["video"]["short_format"]
                         video_clip = VideoFileClip(os.path.join(self.config.temp_dir, fileName), target_resolution=(short_format["width"], short_format["height"]))
                         
                         if video_clip.duration < audioClip.duration / len(videoUrls):
-                            video_clip.loop(duration = audioClip.duration / len(videoUrls))
+                            video_clip = video_clip.loop(duration=audioClip.duration / len(videoUrls))
                         else:
-                            video_clip.with_duration(audioClip.duration / len(videoUrls))
+                            video_clip = video_clip.with_duration(audioClip.duration / len(videoUrls))
                         
                         all_created_clips.append(video_clip)
                         videoClips.append(video_clip)
@@ -520,7 +522,7 @@ class VideoProcessor:
                     all_created_clips.append(background)
                     videoClips = [background]
                 
-                # Create the composite clip and add it to AllVideoClips
+                # Create the composite clip and save it as a segment
                 try:
                     # Use compose method which is better for transitions
                     concatenated_video = concatenate_videoclips(videoClips, method="compose")
@@ -529,16 +531,40 @@ class VideoProcessor:
                     composite_clip = CompositeVideoClip([concatenated_video] + textClips)
                     composite_clip = composite_clip.with_duration(audioClip.duration).with_audio(audioClip)
                     all_created_clips.append(composite_clip)
-                    AllVideoClips.append(composite_clip)
+                    
+                    # Save this segment to a temporary file
+                    segment_filename = f"segment_{i}.mp4"
+                    segment_path = os.path.join(self.config.temp_dir, segment_filename)
+                    composite_clip.write_videofile(
+                        filename=segment_path,
+                        threads=4,
+                        preset="ultrafast",
+                        temp_audiofile_path=self.config.temp_dir
+                    )
+                    segment_files.append(segment_filename)
                 except Exception as e:
                     print(f"Error creating composite clip for part {i}: {e}")
                     continue
+                finally:
+                    # Close all clips in this batch to release memory
+                    for clip in all_created_clips:
+                        try:
+                            clip.close()
+                        except Exception as e:
+                            print(f"Error closing clip: {e}")
             
-            # Create final video
+            # Combine all segments
             output_file = None
-            if AllVideoClips:
-                try:                                                                   
-                    finalVideo = concatenate_videoclips(AllVideoClips, method="compose")
+            if segment_files:
+                try:
+                    # Load segments as clips
+                    segment_clips = []
+                    for segment in segment_files:
+                        segment_path = os.path.join(self.config.temp_dir, segment)
+                        clip = VideoFileClip(segment_path)
+                        segment_clips.append(clip)
+                    
+                    finalVideo = concatenate_videoclips(segment_clips, method="compose")
                     output_file = os.path.join(self.config.output_dir, "shortVideo.mp4")
                     finalVideo.write_videofile(
                         filename=output_file,
@@ -546,32 +572,33 @@ class VideoProcessor:
                         preset="ultrafast",
                         temp_audiofile_path=self.config.temp_dir
                     )
+                    
+                    # Close the segment clips
+                    for clip in segment_clips:
+                        clip.close()
                 except Exception as e:
                     print(f"Error rendering final video: {e}")
             
             return output_file, script_data
         finally:
-            # Close all clips to release resources
-            for clip in all_created_clips:
-                try:
-                    clip.close()
-                except:
-                    pass
             # Delete temporary files
             self.file_utils.delete_temp_files(temp_files)
+            self.file_utils.delete_temp_files(segment_files)
     
     async def generate_long_video(self, script):
         script_data = self.file_utils.decode_json(script)
         if not script_data:
-            return
+            return None
         
-        AllVideoClips = []
         temp_files = []  # Track all temporary files
-        all_created_clips = []  # Track all clips for proper closing
+        segment_files = []  # Track intermediate video segments
         
         try:
+            # Process script parts in batches to manage memory
             for i, part in enumerate(script_data["script"]):
-                audioFile, subtitle_data = await self.tts_processor.convert_text_to_speech_and_vtt(part["text"], "longVideoPart-" + str(i))
+                all_created_clips = []  # Track clips just for this batch
+                
+                audioFile, subtitle_data = await self.tts_processor.convert_text_to_speech_and_vtt(part["text"], f"longVideoPart-{i}")
                 audioClip = AudioFileClip(os.path.join(self.config.temp_dir, audioFile))
                 all_created_clips.append(audioClip)
                 temp_files.append(audioFile)
@@ -585,7 +612,7 @@ class VideoProcessor:
                 video_filenames = []
                 
                 for a, url in enumerate(videoUrls):
-                    fileName = self.video_downloader.download_video(url, "pexelsClip-" + str(i) + "-" + str(a))
+                    fileName = self.video_downloader.download_video(url, f"pexelsClip-{i}-{a}")
                     video_filenames.append(fileName)
                     try:
                         long_format = self.config.config["video"]["long_format"]
@@ -593,6 +620,8 @@ class VideoProcessor:
                         # Ensure video clip is long enough or loop it if needed
                         if video_clip.duration < audioClip.duration / len(videoUrls):
                             video_clip = video_clip.loop(duration=audioClip.duration / len(videoUrls))
+                        else:
+                            video_clip = video_clip.with_duration(audioClip.duration / len(videoUrls))
                         videoClips.append(video_clip)
                         all_created_clips.append(video_clip)
                     except Exception as e:
@@ -609,7 +638,7 @@ class VideoProcessor:
                     all_created_clips.append(background)
                     videoClips = [background]
                 
-                # Create and add the composite clip
+                # Create and save a segment for this part
                 try:
                     concatenated_video = concatenate_videoclips(videoClips, method="compose")
                     # Ensure the concatenated video is exactly the audio duration
@@ -618,15 +647,39 @@ class VideoProcessor:
                     composite_clip = CompositeVideoClip([concatenated_video.resized(height=long_format["height"])] + textClips)
                     composite_clip = composite_clip.with_duration(audioClip.duration).with_audio(audioClip)
                     all_created_clips.append(composite_clip)
-                    AllVideoClips.append(composite_clip)
+                    
+                    # Save this segment to a temporary file
+                    segment_filename = f"long_segment_{i}.mp4"
+                    segment_path = os.path.join(self.config.temp_dir, segment_filename)
+                    composite_clip.write_videofile(
+                        filename=segment_path,
+                        threads=4,
+                        preset="ultrafast",
+                        temp_audiofile_path=self.config.temp_dir
+                    )
+                    segment_files.append(segment_filename)
                 except Exception as e:
                     print(f"Error creating composite clip for part {i}: {e}")
                     continue
+                finally:
+                    # Close all clips in this batch to release memory
+                    for clip in all_created_clips:
+                        try:
+                            clip.close()
+                        except Exception as e:
+                            print(f"Error closing clip: {e}")
             
-            # Create final video
-            if AllVideoClips:
+            # Combine all segments
+            if segment_files:
                 try:
-                    finalVideo = concatenate_videoclips(AllVideoClips, method="compose")
+                    # Load segments as clips
+                    segment_clips = []
+                    for segment in segment_files:
+                        segment_path = os.path.join(self.config.temp_dir, segment)
+                        clip = VideoFileClip(segment_path)
+                        segment_clips.append(clip)
+                    
+                    finalVideo = concatenate_videoclips(segment_clips, method="compose")
                     output_file = os.path.join(self.config.output_dir, "longVideo.mp4")
                     finalVideo.write_videofile(
                         filename=output_file,
@@ -634,17 +687,18 @@ class VideoProcessor:
                         preset="ultrafast",
                         temp_audiofile_path=self.config.temp_dir                    
                     )
+                    
+                    # Close the segment clips
+                    for clip in segment_clips:
+                        clip.close()
+                        
+                    return output_file
                 except Exception as e:
-                    print(f"Error rendering final video: {e}")
+                    print(f"Error rendering final long video: {e}")
         finally:
-            # Close all clips to release resources
-            for clip in all_created_clips:
-                try:
-                    clip.close()
-                except:
-                    pass
             # Delete temporary files
             self.file_utils.delete_temp_files(temp_files)
+            self.file_utils.delete_temp_files(segment_files)
 
 
 class YouTubeUploader:
@@ -742,10 +796,10 @@ class ShortsGenerator:
                 )
     
     async def run(self):
-        if self.content_tracker.use_story_prompt:
-            await self.generate_story()
-        else:
-            await self.generate_short_video()
+        # if self.content_tracker.use_story_prompt:
+        #     await self.generate_story()
+        # else:
+        #     await self.generate_short_video()
             
         await self.generate_long_video()
 
